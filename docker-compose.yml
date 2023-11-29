@@ -1,0 +1,92 @@
+version: '3'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    command: npm run start:dev api
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - auth
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - 5000:5000
+
+  auth:
+    container_name: auth
+    hostname: auth
+    build:
+      context: .
+      dockerfile: ./apps/auth/Dockerfile
+      target: development
+    command: npm run start:dev auth
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres_auth
+      - presence
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  presence:
+    container_name: presence
+    hostname: presence
+    build:
+      context: .
+      dockerfile: ./apps/presence/Dockerfile
+      target: development
+    command: npm run start:dev presence
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgres_auth
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    volumes:
+      - /var/lib/rabbitmq
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    env_file:
+      - .env
+
+  postgres_auth:
+    image: postgres
+    env_file:
+      - .env
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
+
+  postgres_admin:
+    image: dpage/pgadmin4
+    depends_on:
+      - postgres_auth
+    env_file:
+      - .env
+    ports:
+      - '15432:80'
+
+  redis:
+    image: redis
+    command: /bin/sh -c "redis-server --requirepass $$REDIS_PASS"
+    env_file:
+      - .env
+    ports:
+      - 6379:6379
+    volumes:
+      - ./redis/data:/data
